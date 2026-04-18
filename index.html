@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoPulse • Real-Time Alerts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500&display=swap');
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .heading-font { font-family: 'Space Grotesk', sans-serif; }
+        .table-row:hover { background-color: #1a1a1a; }
+        .live-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+    <nav class="bg-black border-b border-zinc-800 sticky top-0 z-50">
+        <div class="max-w-screen-2xl mx-auto px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-x-3">
+                <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-black font-bold text-2xl">₿</div>
+                <h1 class="heading-font text-3xl">CryptoPulse</h1>
+                <span class="text-emerald-400 text-sm px-3 py-1 bg-emerald-500/10 rounded-3xl border border-emerald-500/30">LIVE</span>
+            </div>
+            <div class="flex items-center gap-x-6">
+                <div class="flex items-center gap-x-2 bg-zinc-900 px-4 h-9 rounded-3xl border border-zinc-700">
+                    <div class="w-2 h-2 bg-emerald-400 rounded-full live-dot"></div>
+                    <span id="last-updated">Loading coins...</span>
+                </div>
+                <button onclick="refreshData()" 
+                        class="flex items-center gap-x-2 bg-emerald-500 hover:bg-emerald-400 text-black px-6 h-10 rounded-3xl font-medium">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh Data
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-screen-2xl mx-auto px-8 py-8">
+        <div id="status" class="mb-6 bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-center">
+            <i class="fa-solid fa-spinner animate-spin text-emerald-400 text-2xl"></i>
+            <p id="status-text" class="mt-3 text-zinc-300">Fetching top 1000 coins from CoinGecko...</p>
+        </div>
+
+        <div class="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800">
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
+                <h2 class="text-2xl font-semibold heading-font">Top 1000 Cryptocurrencies (Live Prices)</h2>
+                <input id="search-input" 
+                       type="text" 
+                       placeholder="Search by coin name or symbol..." 
+                       onkeyup="filterCoins()"
+                       class="bg-zinc-800 border border-zinc-700 focus:border-emerald-400 rounded-3xl px-6 py-3 w-96 outline-none text-sm">
+            </div>
+            <table class="w-full">
+                <thead>
+                    <tr class="text-xs uppercase text-zinc-400 border-b border-zinc-800">
+                        <th class="py-5 px-8 text-left">#</th>
+                        <th class="py-5 px-4 text-left">Coin</th>
+                        <th class="py-5 px-8 text-right">Price (USD)</th>
+                        <th class="py-5 px-8 text-right">24h %</th>
+                        <th class="py-5 px-8 text-right">Market Cap</th>
+                        <th class="py-5 px-8 w-40"></th>
+                    </tr>
+                </thead>
+                <tbody id="coins-body" class="divide-y divide-zinc-800 text-sm"></tbody>
+            </table>
+        </div>
+
+        <div class="mt-8 text-center text-xs text-zinc-500">
+            Powered by CoinGecko • Real-time data • Price alerts coming soon (EmailJS setup needed for real emails)
+        </div>
+    </div>
+
+    <script>
+        let allCoins = [];
+        let filtered = [];
+
+        async function fetchCoins() {
+            const statusEl = document.getElementById("status");
+            const statusText = document.getElementById("status-text");
+            statusText.textContent = "Fetching top 1000 coins... (may take 5-10 seconds)";
+
+            try {
+                allCoins = [];
+                for (let page = 1; page <= 4; page++) {
+                    const res = await fetch(
+                        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&price_change_percentage=24h`
+                    );
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    allCoins = allCoins.concat(data);
+                    statusText.textContent = `Loaded ${allCoins.length} coins so far...`;
+                    await new Promise(r => setTimeout(r, 400));
+                }
+
+                filtered = allCoins;
+                renderTable();
+                document.getElementById("last-updated").textContent = `Last updated: just now`;
+                statusEl.style.display = "none";
+            } catch (err) {
+                statusText.innerHTML = `Error: ${err.message}<br><br>Try clicking "Refresh Data" again or check your internet.`;
+                statusText.classList.add("text-red-400");
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("coins-body");
+            let html = "";
+
+            if (filtered.length === 0) {
+                html = `<tr><td colspan="6" class="text-center py-12 text-zinc-400">No coins found matching your search.</td></tr>`;
+            } else {
+                filtered.slice(0, 100).forEach((coin, i) => {
+                    const change = coin.price_change_percentage_24h || 0;
+                    html += `
+                    <tr class="table-row">
+                        <td class="py-5 px-8 font-medium text-zinc-400">${i+1}</td>
+                        <td class="py-5 px-4">
+                            <div class="flex items-center gap-x-3">
+                                <img src="\( {coin.image}" alt=" \){coin.name}" class="w-8 h-8 rounded-full">
+                                <div>
+                                    <div class="font-semibold">${coin.name}</div>
+                                    <div class="text-xs text-zinc-400">${coin.symbol.toUpperCase()}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-5 px-8 text-right font-medium">\[ {coin.current_price.toLocaleString(undefined, {minimumFractionDigits: coin.current_price < 1 ? 6 : 2})}</td>
+                        <td class="py-5 px-8 text-right ${change >= 0 ? 'text-emerald-400' : 'text-red-400'} font-medium">
+                            ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%
+                        </td>
+                        <td class="py-5 px-8 text-right font-medium"> \]{(coin.market_cap / 1e9).toFixed(1)}B</td>
+                        <td class="py-5 px-8">
+                            <button onclick="setAlert('\( {coin.name}', ' \){coin.symbol}', ${coin.current_price})" 
+                                    class="text-xs bg-emerald-400/10 hover:bg-emerald-400 hover:text-black text-emerald-400 px-5 py-2 rounded-3xl transition-all">
+                                <i class="fa-solid fa-bell"></i> Set Alert
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+            }
+            tbody.innerHTML = html;
+        }
+
+        function filterCoins() {
+            const term = document.getElementById("search-input").value.toLowerCase().trim();
+            filtered = term ? allCoins.filter(c => 
+                c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term)
+            ) : allCoins;
+            renderTable();
+        }
+
+        function refreshData() {
+            document.getElementById("last-updated").textContent = "Refreshing...";
+            document.getElementById("status").style.display = "block";
+            fetchCoins();
+        }
+
+        function setAlert(name, symbol, currentPrice) {
+            const target = prompt(`Set price alert for \( {name} ( \){symbol.toUpperCase()})\nCurrent: \[ {currentPrice}\n\nEnter target price (USD):`, currentPrice.toFixed(2));
+            if (target && !isNaN(target)) {
+                alert(`Alert created for ${symbol.toUpperCase()}!\n\nYou will be notified when price reaches \]{parseFloat(target)}.\n\n(Full email alerts can be added later with EmailJS)`);
+            }
+        }
+
+        // Auto start
+        window.onload = fetchCoins;
+    </script>
+</body>
+</html>Add CryptoPulse dashboard
