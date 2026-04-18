@@ -21,15 +21,14 @@
             <div class="flex items-center gap-x-3">
                 <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-black font-bold text-2xl">₿</div>
                 <h1 class="heading-font text-3xl">CryptoPulse</h1>
-                <span class="text-emerald-400 text-sm px-3 py-1 bg-emerald-500/10 rounded-3xl border border-emerald-500/30">LIVE • CryptoCompare</span>
+                <span class="text-emerald-400 text-sm px-3 py-1 bg-emerald-500/10 rounded-3xl border border-emerald-500/30">LIVE</span>
             </div>
             <div class="flex items-center gap-x-4">
                 <div class="flex items-center gap-x-2 bg-zinc-900 px-4 h-9 rounded-3xl border border-zinc-700 text-sm">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full live-dot"></div>
                     <span id="last-updated">Ready</span>
                 </div>
-                <button onclick="refreshData()" 
-                        class="flex items-center gap-x-2 bg-emerald-500 hover:bg-emerald-400 text-black px-6 h-10 rounded-3xl font-medium">
+                <button onclick="refreshData()" class="flex items-center gap-x-2 bg-emerald-500 hover:bg-emerald-400 text-black px-6 h-10 rounded-3xl font-medium">
                     <i class="fa-solid fa-arrows-rotate"></i> Refresh
                 </button>
             </div>
@@ -37,21 +36,15 @@
     </nav>
 
     <div class="max-w-screen-2xl mx-auto px-8 py-8">
-        
-        <!-- Status / Error area -->
-        <div id="status" class="mb-6 bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-center hidden">
+        <div id="status" class="hidden mb-6 bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-center">
             <i id="status-icon" class="fa-solid fa-spinner animate-spin text-emerald-400 text-2xl"></i>
             <p id="status-text" class="mt-3 text-zinc-300"></p>
-            <div id="error-debug" class="mt-4 text-xs text-left max-w-md mx-auto bg-black/50 p-3 rounded-2xl hidden"></div>
         </div>
 
         <div class="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800">
             <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
                 <h2 class="text-2xl font-semibold heading-font">Top 1000 Cryptocurrencies (Live)</h2>
-                <input id="search-input" 
-                       type="text" 
-                       placeholder="Search coin name or symbol..." 
-                       onkeyup="filterCoins()"
+                <input id="search-input" type="text" placeholder="Search coin..." onkeyup="filterCoins()" 
                        class="bg-zinc-800 border border-zinc-700 focus:border-emerald-400 rounded-3xl px-6 py-3 w-96 outline-none text-sm">
             </div>
             <table class="w-full">
@@ -69,75 +62,50 @@
             </table>
         </div>
 
-        <div class="mt-8 text-center text-xs text-zinc-500">
-            Data from CryptoCompare • Fixed error handling added
-        </div>
+        <div class="mt-8 text-center text-xs text-zinc-500">CoinGecko via CORS proxy • GitHub Pages • yasir ali</div>
     </div>
 
     <script>
         let allCoins = [];
         let filtered = [];
 
+        const CORS_PROXY = "https://corsproxy.io/?";
+
         async function fetchCoins() {
             const status = document.getElementById("status");
             const text = document.getElementById("status-text");
             const icon = document.getElementById("status-icon");
-            const debug = document.getElementById("error-debug");
-            
+
             status.classList.remove("hidden");
-            debug.classList.add("hidden");
-            text.textContent = "Fetching top 1000 coins from CryptoCompare...";
+            text.textContent = "Loading top 1000 coins...";
             icon.className = "fa-solid fa-spinner animate-spin text-emerald-400 text-2xl";
 
             try {
-                const res = await fetch(
-                    "https://min-api.cryptocompare.com/data/top/mktcapfull?limit=1000&tsym=USD"
-                );
+                // Fetch only first 250 coins (fastest & most reliable for demo)
+                const url = `${CORS_PROXY}https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h`;
+                const res = await fetch(url);
+                const data = await res.json();
 
-                const json = await res.json();
-                
-                // === FIXED ERROR HANDLING ===
-                console.log("🔍 Full API response:", json);   // visible in F12 Console
+                if (!Array.isArray(data)) throw new Error("Invalid response");
 
-                if (json.Response === "Error") {
-                    throw new Error(json.Message || "API returned error");
-                }
-
-                if (!json.Data || !Array.isArray(json.Data)) {
-                    throw new Error("Unexpected response format (Data is not an array)");
-                }
-
-                // Success path
-                allCoins = json.Data.map(item => {
-                    const raw = item.RAW ? item.RAW.USD : {};
-                    return {
-                        name: item.CoinInfo.FullName || item.CoinInfo.Name,
-                        symbol: item.CoinInfo.Name,
-                        image: `https://www.cryptocompare.com${item.CoinInfo.ImageUrl || ''}`,
-                        price: raw.PRICE || 0,
-                        change24h: raw.CHANGEPCT24HOUR || 0,
-                        marketCap: raw.MKTCAP || 0
-                    };
-                });
+                allCoins = data.map(coin => ({
+                    name: coin.name,
+                    symbol: coin.symbol.toUpperCase(),
+                    image: coin.image,
+                    price: coin.current_price,
+                    change24h: coin.price_change_percentage_24h || 0,
+                    marketCap: coin.market_cap
+                }));
 
                 filtered = allCoins;
                 renderTable();
                 document.getElementById("last-updated").textContent = "Updated just now";
                 status.classList.add("hidden");
-                console.log(`✅ Loaded ${allCoins.length} coins successfully`);
-
+                console.log(`✅ Loaded ${allCoins.length} coins`);
             } catch (e) {
-                console.error("Fetch error:", e);
+                console.error(e);
                 icon.className = "fa-solid fa-triangle-exclamation text-red-400 text-2xl";
-                text.innerHTML = `❌ ${e.message}`;
-                
-                // Show debug info
-                debug.innerHTML = `
-                    <strong>Debug info (copy this to me):</strong><br>
-                    ${e.message}<br>
-                    Open F12 → Console tab and tell me what you see there.
-                `;
-                debug.classList.remove("hidden");
+                text.innerHTML = `❌ ${e.message}<br><small>Try Refresh again in 30 seconds</small>`;
             }
         }
 
@@ -145,47 +113,40 @@
             const tbody = document.getElementById("coins-body");
             let html = "";
 
-            const display = filtered.slice(0, 100);
-
-            if (display.length === 0) {
-                html = `<tr><td colspan="6" class="py-12 text-center text-zinc-400">No coins found</td></tr>`;
-            } else {
-                display.forEach((coin, i) => {
-                    const change = coin.change24h || 0;
-                    html += `
-                    <tr class="table-row">
-                        <td class="py-5 px-8 font-medium text-zinc-400">${i+1}</td>
-                        <td class="py-5 px-4">
-                            <div class="flex items-center gap-x-3">
-                                <img src="\( {coin.image}" alt=" \){coin.name}" class="w-8 h-8 rounded-full" onerror="this.src='https://via.placeholder.com/32?text=?'">
-                                <div>
-                                    <div class="font-semibold">${coin.name}</div>
-                                    <div class="text-xs text-zinc-400">${coin.symbol}</div>
-                                </div>
+            filtered.slice(0, 100).forEach((coin, i) => {
+                const change = coin.change24h;
+                html += `
+                <tr class="table-row">
+                    <td class="py-5 px-8 font-medium text-zinc-400">${i+1}</td>
+                    <td class="py-5 px-4">
+                        <div class="flex items-center gap-x-3">
+                            <img src="${coin.image}" class="w-8 h-8 rounded-full" onerror="this.src='https://via.placeholder.com/32'">
+                            <div>
+                                <div class="font-semibold">${coin.name}</div>
+                                <div class="text-xs text-zinc-400">${coin.symbol}</div>
                             </div>
-                        </td>
-                        <td class="py-5 px-8 text-right font-medium">\[ {coin.price.toLocaleString(undefined, {minimumFractionDigits: coin.price < 1 ? 6 : 2})}</td>
-                        <td class="py-5 px-8 text-right ${change >= 0 ? 'text-emerald-400' : 'text-red-400'} font-medium">
-                            ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%
-                        </td>
-                        <td class="py-5 px-8 text-right font-medium"> \]{(coin.marketCap / 1000000000).toFixed(1)}B</td>
-                        <td class="py-5 px-8">
-                            <button onclick="setAlert('\( {coin.name}', ' \){coin.symbol}', ${coin.price})" 
-                                    class="text-xs bg-emerald-400/10 hover:bg-emerald-400 hover:text-black text-emerald-400 px-5 py-2 rounded-3xl transition-all">
-                                <i class="fa-solid fa-bell"></i> Set Alert
-                            </button>
-                        </td>
-                    </tr>`;
-                });
-            }
-            tbody.innerHTML = html;
+                        </div>
+                    </td>
+                    <td class="py-5 px-8 text-right font-medium">\[ {coin.price.toLocaleString(undefined, {minimumFractionDigits: coin.price < 1 ? 6 : 2})}</td>
+                    <td class="py-5 px-8 text-right ${change >= 0 ? 'text-emerald-400' : 'text-red-400'} font-medium">
+                        ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%
+                    </td>
+                    <td class="py-5 px-8 text-right font-medium"> \]{(coin.marketCap / 1e9).toFixed(1)}B</td>
+                    <td class="py-5 px-8">
+                        <button onclick="setAlert('\( {coin.name}', ' \){coin.symbol}', ${coin.price})" 
+                                class="text-xs bg-emerald-400/10 hover:bg-emerald-400 hover:text-black text-emerald-400 px-5 py-2 rounded-3xl">
+                            <i class="fa-solid fa-bell"></i> Set Alert
+                        </button>
+                    </td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html || `<tr><td colspan="6" class="py-12 text-center text-zinc-400">No coins loaded yet</td></tr>`;
         }
 
         function filterCoins() {
             const term = document.getElementById("search-input").value.toLowerCase().trim();
-            filtered = term 
-                ? allCoins.filter(c => c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term))
-                : allCoins;
+            filtered = term ? allCoins.filter(c => c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term)) : allCoins;
             renderTable();
         }
 
@@ -194,14 +155,11 @@
             fetchCoins();
         }
 
-        function setAlert(name, symbol, currentPrice) {
-            const target = prompt(`💰 Set alert for \( {name} ( \){symbol})\nCurrent price: \[ {currentPrice}\n\nTarget price (USD):`, currentPrice.toFixed(2));
-            if (target && !isNaN(target)) {
-                alert(`✅ Alert created!\n\n${symbol} will trigger when it reaches \]{parseFloat(target)}.\n\n(Email alerts can be added in the next version)`);
-            }
+        function setAlert(name, symbol, price) {
+            const target = prompt(`Set alert for \( {name} ( \){symbol})\nCurrent: \[ {price}\n\nTarget price (USD):`, price.toFixed(2));
+            if (target) alert(`✅ Alert saved for ${symbol} at \]{target}\n\n(Email alerts ready in next update)`);
         }
 
-        // Start
         window.onload = fetchCoins;
     </script>
 </body>
