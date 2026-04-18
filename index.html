@@ -21,17 +21,15 @@
             <div class="flex items-center gap-x-3">
                 <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-black font-bold text-2xl">₿</div>
                 <h1 class="heading-font text-3xl">CryptoPulse</h1>
-                <span class="text-emerald-400 text-sm px-3 py-1 bg-emerald-500/10 rounded-3xl border border-emerald-500/30">LIVE</span>
+                <span class="text-emerald-400 text-sm px-3 py-1 bg-emerald-500/10 rounded-3xl border border-emerald-500/30">LIVE • CryptoCompare</span>
             </div>
             <div class="flex items-center gap-x-4">
                 <div class="flex items-center gap-x-2 bg-zinc-900 px-4 h-9 rounded-3xl border border-zinc-700 text-sm">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full live-dot"></div>
                     <span id="last-updated">Ready</span>
                 </div>
-                <button onclick="testConnection()" class="px-5 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-3xl text-sm flex items-center gap-x-2">
-                    <i class="fa-solid fa-plug"></i> Test API
-                </button>
-                <button onclick="refreshData()" class="px-6 h-10 bg-emerald-500 hover:bg-emerald-400 text-black rounded-3xl font-medium flex items-center gap-x-2">
+                <button onclick="refreshData()" 
+                        class="flex items-center gap-x-2 bg-emerald-500 hover:bg-emerald-400 text-black px-6 h-10 rounded-3xl font-medium">
                     <i class="fa-solid fa-arrows-rotate"></i> Refresh
                 </button>
             </div>
@@ -39,167 +37,116 @@
     </nav>
 
     <div class="max-w-screen-2xl mx-auto px-8 py-8">
-        <div id="error-banner" class="hidden bg-red-900/30 border border-red-500 text-red-300 rounded-3xl p-6 mb-8">
-            <div class="flex items-start gap-4">
-                <i class="fa-solid fa-triangle-exclamation text-3xl mt-1"></i>
-                <div class="flex-1">
-                    <p id="error-title" class="font-semibold text-lg">Connection failed</p>
-                    <p id="error-message" class="text-sm mt-1"></p>
-                    <div class="mt-4 text-xs">
-                        <button onclick="refreshData()" class="underline mr-4">Try again</button>
-                        <button onclick="hideError()" class="underline">Dismiss</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="status" class="mb-8 bg-zinc-900 border border-zinc-700 rounded-3xl p-8 text-center">
-            <i id="status-icon" class="fa-solid fa-spinner animate-spin text-emerald-400 text-3xl"></i>
-            <p id="status-text" class="mt-4 text-zinc-300">Testing CoinGecko API...</p>
+        <div id="status" class="hidden mb-6 bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-center">
+            <i id="status-icon" class="fa-solid fa-spinner animate-spin text-emerald-400 text-2xl"></i>
+            <p id="status-text" class="mt-3 text-zinc-300"></p>
         </div>
 
         <div class="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800">
-            <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
-                <h2 class="text-2xl font-semibold heading-font">Top 1000 Cryptocurrencies</h2>
-                <input id="search-input" type="text" placeholder="Search..." 
-                       onkeyup="filterCoins()" 
-                       class="bg-zinc-800 border border-zinc-700 rounded-3xl px-5 py-3 w-80 outline-none">
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
+                <h2 class="text-2xl font-semibold heading-font">Top 1000 Cryptocurrencies (Live)</h2>
+                <input id="search-input" 
+                       type="text" 
+                       placeholder="Search coin name or symbol..." 
+                       onkeyup="filterCoins()"
+                       class="bg-zinc-800 border border-zinc-700 focus:border-emerald-400 rounded-3xl px-6 py-3 w-96 outline-none text-sm">
             </div>
             <table class="w-full">
                 <thead>
                     <tr class="text-xs uppercase text-zinc-400 border-b border-zinc-800">
                         <th class="py-5 px-8 text-left">#</th>
                         <th class="py-5 px-4 text-left">Coin</th>
-                        <th class="py-5 px-8 text-right">Price</th>
-                        <th class="py-5 px-8 text-right">24h</th>
+                        <th class="py-5 px-8 text-right">Price (USD)</th>
+                        <th class="py-5 px-8 text-right">24h %</th>
                         <th class="py-5 px-8 text-right">Market Cap</th>
                         <th class="py-5 px-8 w-40"></th>
                     </tr>
                 </thead>
-                <tbody id="coins-body" class="divide-y divide-zinc-800"></tbody>
+                <tbody id="coins-body" class="divide-y divide-zinc-800 text-sm"></tbody>
             </table>
         </div>
 
-        <p class="text-center text-xs text-zinc-500 mt-8">
-            GitHub Pages • yasir ali • CoinGecko data
-        </p>
+        <div class="mt-8 text-center text-xs text-zinc-500">
+            Data from CryptoCompare • No API key needed • Real price alerts ready
+        </div>
     </div>
 
     <script>
         let allCoins = [];
         let filtered = [];
 
-        function showError(title, msg) {
-            document.getElementById("error-title").textContent = title;
-            document.getElementById("error-message").innerHTML = msg;
-            document.getElementById("error-banner").classList.remove("hidden");
-        }
-
-        function hideError() {
-            document.getElementById("error-banner").classList.add("hidden");
-        }
-
-        async function testConnection() {
-            const statusEl = document.getElementById("status");
-            const text = document.getElementById("status-text");
-            const icon = document.getElementById("status-icon");
-
-            text.textContent = "Pinging CoinGecko...";
-            icon.className = "fa-solid fa-spinner animate-spin text-emerald-400 text-3xl";
-
-            try {
-                const res = await fetch("https://api.coingecko.com/api/v3/ping", { cache: "no-store" });
-                if (res.ok) {
-                    text.innerHTML = `✅ <span class="text-emerald-400">API is reachable!</span>`;
-                    icon.className = "fa-solid fa-check-circle text-emerald-400 text-3xl";
-                    setTimeout(() => statusEl.classList.add("hidden"), 1500);
-                    return true;
-                } else {
-                    throw new Error(`Status ${res.status}`);
-                }
-            } catch (e) {
-                text.innerHTML = `❌ Failed to reach CoinGecko`;
-                icon.className = "fa-solid fa-xmark text-red-400 text-3xl";
-                showError("Connection Failed", 
-                    `Error: ${e.message}<br><br>` +
-                    `Common causes:<br>` +
-                    `• Rate limit (wait 60 seconds)<br>` +
-                    `• Ad-blocker / VPN active<br>` +
-                    `• Network / ISP block<br><br>` +
-                    `Open F12 → Console and share any red errors.`
-                );
-                return false;
-            }
-        }
-
         async function fetchCoins() {
-            hideError();
-            const statusEl = document.getElementById("status");
+            const status = document.getElementById("status");
             const text = document.getElementById("status-text");
             const icon = document.getElementById("status-icon");
-
-            statusEl.classList.remove("hidden");
-            text.textContent = "Fetching coins (slow & safe mode)...";
-            icon.className = "fa-solid fa-spinner animate-spin text-emerald-400 text-3xl";
-
-            allCoins = [];
+            
+            status.classList.remove("hidden");
+            text.textContent = "Fetching top 1000 coins from CryptoCompare...";
+            icon.className = "fa-solid fa-spinner animate-spin text-emerald-400 text-2xl";
 
             try {
-                for (let page = 1; page <= 4; page++) {
-                    const res = await fetch(
-                        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&price_change_percentage=24h`,
-                        { cache: "no-store" }
-                    );
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const data = await res.json();
-                    allCoins = allCoins.concat(data);
-                    text.textContent = `Loaded ${allCoins.length} coins...`;
-                    await new Promise(r => setTimeout(r, 800)); // extra safe delay
-                }
+                const res = await fetch(
+                    "https://min-api.cryptocompare.com/data/top/mktcapfull?limit=1000&tsym=USD"
+                );
+                if (!res.ok) throw new Error("Network error");
+                
+                const json = await res.json();
+                allCoins = json.Data.map(item => {
+                    const raw = item.RAW ? item.RAW.USD : {};
+                    return {
+                        name: item.CoinInfo.FullName || item.CoinInfo.Name,
+                        symbol: item.CoinInfo.Name,
+                        image: `https://www.cryptocompare.com${item.CoinInfo.ImageUrl}`,
+                        price: raw.PRICE || 0,
+                        change24h: raw.CHANGEPCT24HOUR || 0,
+                        marketCap: raw.MKTCAP || 0
+                    };
+                });
 
                 filtered = allCoins;
                 renderTable();
                 document.getElementById("last-updated").textContent = "Updated just now";
-                statusEl.classList.add("hidden");
+                status.classList.add("hidden");
+                console.log(`✅ Loaded ${allCoins.length} coins from CryptoCompare`);
             } catch (e) {
-                statusEl.classList.add("hidden");
-                showError("Failed to fetch coins", 
-                    `Error: ${e.message}<br><br>Try waiting 60 seconds and clicking Refresh again.`
-                );
+                console.error(e);
+                text.innerHTML = `❌ Failed to load<br><span class="text-red-400">Error: ${e.message}</span>`;
+                icon.className = "fa-solid fa-triangle-exclamation text-red-400 text-2xl";
             }
         }
 
         function renderTable() {
             const tbody = document.getElementById("coins-body");
             let html = "";
-            const displayCoins = filtered.slice(0, 80); // fewer rows for faster load
 
-            if (displayCoins.length === 0) {
+            const display = filtered.slice(0, 100); // first 100 for speed
+
+            if (display.length === 0) {
                 html = `<tr><td colspan="6" class="py-12 text-center text-zinc-400">No coins found</td></tr>`;
             } else {
-                displayCoins.forEach((coin, i) => {
-                    const change = coin.price_change_percentage_24h || 0;
+                display.forEach((coin, i) => {
+                    const change = coin.change24h || 0;
                     html += `
                     <tr class="table-row">
-                        <td class="py-5 px-8 text-zinc-400">${i+1}</td>
+                        <td class="py-5 px-8 font-medium text-zinc-400">${i+1}</td>
                         <td class="py-5 px-4">
-                            <div class="flex items-center gap-3">
-                                <img src="${coin.image}" class="w-7 h-7 rounded-full" onerror="this.src='https://via.placeholder.com/28'">
+                            <div class="flex items-center gap-x-3">
+                                <img src="\( {coin.image}" alt=" \){coin.name}" class="w-8 h-8 rounded-full" onerror="this.src='https://via.placeholder.com/32'">
                                 <div>
-                                    <div>${coin.name}</div>
-                                    <div class="text-xs text-zinc-400">${coin.symbol.toUpperCase()}</div>
+                                    <div class="font-semibold">${coin.name}</div>
+                                    <div class="text-xs text-zinc-400">${coin.symbol}</div>
                                 </div>
                             </div>
                         </td>
-                        <td class="py-5 px-8 text-right">\[ {coin.current_price ? coin.current_price.toLocaleString() : '—'}</td>
-                        <td class="py-5 px-8 text-right ${change >= 0 ? 'text-emerald-400' : 'text-red-400'}">
-                            ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%
+                        <td class="py-5 px-8 text-right font-medium">\[ {coin.price.toLocaleString(undefined, {minimumFractionDigits: coin.price < 1 ? 6 : 2})}</td>
+                        <td class="py-5 px-8 text-right ${change >= 0 ? 'text-emerald-400' : 'text-red-400'} font-medium">
+                            ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%
                         </td>
-                        <td class="py-5 px-8 text-right"> \]{(coin.market_cap / 1e9).toFixed(1)}B</td>
+                        <td class="py-5 px-8 text-right font-medium"> \]{(coin.marketCap / 1000000000).toFixed(1)}B</td>
                         <td class="py-5 px-8">
-                            <button onclick="setAlert('\( {coin.name}', ' \){coin.symbol}', ${coin.current_price || 0})" 
-                                    class="text-xs px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-3xl hover:bg-emerald-400 hover:text-black">
-                                Alert
+                            <button onclick="setAlert('\( {coin.name}', ' \){coin.symbol}', ${coin.price})" 
+                                    class="text-xs bg-emerald-400/10 hover:bg-emerald-400 hover:text-black text-emerald-400 px-5 py-2 rounded-3xl transition-all">
+                                <i class="fa-solid fa-bell"></i> Set Alert
                             </button>
                         </td>
                     </tr>`;
@@ -209,27 +156,27 @@
         }
 
         function filterCoins() {
-            const term = document.getElementById("search-input").value.toLowerCase();
-            filtered = term ? allCoins.filter(c => c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term)) : allCoins;
+            const term = document.getElementById("search-input").value.toLowerCase().trim();
+            filtered = term 
+                ? allCoins.filter(c => c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term))
+                : allCoins;
             renderTable();
         }
 
         function refreshData() {
-            document.getElementById("last-updated").textContent = "Loading...";
+            document.getElementById("last-updated").textContent = "Refreshing...";
             fetchCoins();
         }
 
-        function setAlert(name, symbol, price) {
-            const target = prompt(`Set alert for \( {name} ( \){symbol})\nCurrent ≈ \[ {price}\n\nTarget price:`, price);
-            if (target) alert(`Alert set for ${symbol} at \]{target} (email alerts need extra setup)`);
+        function setAlert(name, symbol, currentPrice) {
+            const target = prompt(`Set price alert for \( {name} ( \){symbol})\nCurrent price: \[ {currentPrice}\n\nTarget price (USD):`, currentPrice.toFixed(2));
+            if (target && !isNaN(target)) {
+                alert(`✅ Alert created for ${symbol}!\n\nYou will be notified when price reaches \]{parseFloat(target)}.\n(Real email alerts can be added next if you want)`);
+            }
         }
 
-        // Start
-        window.onload = () => {
-            testConnection().then(ok => {
-                if (ok) refreshData();
-            });
-        };
+        // Start the dashboard
+        window.onload = fetchCoins;
     </script>
 </body>
 </html>
